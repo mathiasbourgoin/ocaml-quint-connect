@@ -1,0 +1,10 @@
+**/node-compile-cache/
+_build/
+.epure/
+*.byte
+*.native
+.merlin
+# crucible build artifacts
+build_*_dune/
+dune_*_stdout
+dune_*_stderr

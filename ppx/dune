@@ -1,0 +1,13 @@
+(library
+ (name ppx_quint_switch)
+ (kind ppx_rewriter)
+ (libraries ppxlib)
+ (modules ppx_quint_switch)
+ (preprocess (pps ppxlib.metaquot)))
+
+(library
+ (name ppx_quint_connect)
+ (kind ppx_rewriter)
+ (libraries ppxlib)
+ (modules ppx_quint_connect)
+ (preprocess (pps ppxlib.metaquot)))

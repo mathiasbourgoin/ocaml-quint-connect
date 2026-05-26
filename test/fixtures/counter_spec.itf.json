@@ -1,0 +1,22 @@
+{
+  "#meta": {
+    "format": "ITF",
+    "formatVersion": "1.0.0",
+    "description": "Counter trace: 3 increment steps, counter goes 0→1→2→3"
+  },
+  "vars": ["counter"],
+  "states": [
+    {
+      "#meta": { "actionTaken": "increment" },
+      "counter": { "#bigint": "1" }
+    },
+    {
+      "#meta": { "actionTaken": "increment" },
+      "counter": { "#bigint": "2" }
+    },
+    {
+      "#meta": { "actionTaken": "increment" },
+      "counter": { "#bigint": "3" }
+    }
+  ]
+}

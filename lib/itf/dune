@@ -1,4 +1,5 @@
 (library
  (name ocaml_quint_connect)
+ (public_name ocaml-quint-connect)
  (libraries yojson)
  (modules itf replay quint_test quint_cli))

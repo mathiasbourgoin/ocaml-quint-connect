@@ -1,4 +1,6 @@
 (executable
  (name main)
+ (public_name quint-connect)
+ (package ocaml-quint-connect)
 (libraries ocaml_quint_connect dynlink)
  (modules main))

@@ -1,5 +1,6 @@
 (library
  (name ppx_quint_switch)
+ (public_name ocaml-quint-connect.ppx-switch)
  (kind ppx_rewriter)
  (libraries ppxlib)
  (modules ppx_quint_switch)
@@ -7,6 +8,7 @@
 
 (library
  (name ppx_quint_connect)
+ (public_name ocaml-quint-connect.ppx)
  (kind ppx_rewriter)
  (libraries ppxlib)
  (modules ppx_quint_connect)

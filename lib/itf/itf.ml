@@ -134,37 +134,60 @@ let parse_value_list f lst =
   in
   go [] lst
 
+(* Quint Option values ({"tag": "Some"|"None", "value": v}) wrap every nondeterministic
+   pick of `quint run --mbt`: [Some v] is exposed as [v], [None] is dropped. Other values
+   are kept unchanged. *)
+let unwrap_pick (k, v) =
+  match v with
+  | `Assoc [ ("tag", `String "None"); ("value", _) ]
+  | `Assoc [ ("value", _); ("tag", `String "None") ] -> None
+  | `Assoc [ ("tag", `String "Some"); ("value", x) ]
+  | `Assoc [ ("value", x); ("tag", `String "Some") ] -> Some (k, x)
+  | _ -> Some (k, v)
+
+let is_mbt_key k = String.length k >= 5 && String.sub k 0 5 = "mbt::"
+
+(* The unqualified name of a variable qualified by module path ("inst::mod::x" -> "x"). *)
+let unqualified k =
+  match String.rindex_opt k ':' with
+  | Some i when i > 0 && k.[i - 1] = ':' -> String.sub k (i + 1) (String.length k - i - 1)
+  | _ -> k
+
 let parse_step (j : Yojson.Basic.t) : (Step.t, string) result =
   match j with
   | `Assoc fields ->
-    let meta_opt =
-      match List.assoc_opt "#meta" fields with
-      | Some (`Assoc m) -> Some m
-      | _               -> None
+    let meta = match List.assoc_opt "#meta" fields with Some (`Assoc m) -> m | _ -> [] in
+    (* Older Quint versions store MBT metadata in #meta; Quint 0.32 stores it as
+       mbt::* state bindings. *)
+    let lookup name =
+      match List.assoc_opt name meta with
+      | Some v -> Some v
+      | None -> List.assoc_opt ("mbt::" ^ name) fields
     in
     let action_name =
-      match meta_opt with
-      | Some m ->
-        (match List.assoc_opt "actionTaken" m with
-         | Some (`String s) -> Some s
-         | _                -> None)
-      | None -> None
+      match lookup "actionTaken" with Some (`String s) -> Some s | _ -> None
     in
     let nondet_pairs =
-      match meta_opt with
-      | Some m ->
-        (match List.assoc_opt "nondetPicks" m with
-         | Some (`Assoc picks) -> picks
-         | _                   -> [])
-      | None -> []
+      match lookup "nondetPicks" with
+      | Some (`Assoc picks) -> List.filter_map unwrap_pick picks
+      | _ -> []
     in
     (match parse_value_list (fun (k, v) ->
        match parse_value v with Ok v' -> Ok (k, v') | Error e -> Error e
      ) nondet_pairs with
      | Error e -> Error e
      | Ok nondet_picks ->
+       let state_pairs =
+         List.filter (fun (k, _) -> k <> "#meta" && not (is_mbt_key k)) fields
+       in
+       (* Expose a qualified variable under its unqualified name when no other
+          variable of the step shares that name. *)
+       let short = List.map (fun (k, _) -> unqualified k) state_pairs in
+       let unique n = List.length (List.filter (String.equal n) short) = 1 in
        let binding_pairs =
-         List.filter (fun (k, _) -> k <> "#meta") fields
+         List.map (fun (k, v) ->
+           let n = unqualified k in
+           ((if unique n then n else k), v)) state_pairs
        in
        (match parse_value_list (fun (k, v) ->
           match parse_value v with Ok v' -> Ok (k, v') | Error e -> Error e

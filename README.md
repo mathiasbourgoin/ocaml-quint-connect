@@ -140,6 +140,29 @@ let test_counter () =
 
 ---
 
+## Trace formats
+
+Both ITF layouts are accepted:
+
+- Quint `run --mbt` (0.32 and later) stores the action and the nondeterministic choices as
+  the state bindings `mbt::actionTaken` and `mbt::nondetPicks`, and wraps each choice in a
+  Quint `Option`. The parser exposes them as `Step.action_name` and `Step.nondet_picks`
+  (a `Some v` choice as `v`; a `None` choice is absent) and removes the `mbt::` keys from
+  `Step.bindings`.
+- Older traces store `actionTaken` and `nondetPicks` in each state's `#meta`.
+
+State variables qualified by module path, as produced by `quint run --main inst` on an
+instance module (`inst::counter::x`), are exposed under their short name (`x`) when no other
+variable of the step has the same short name.
+
+### Drivers with resources
+
+A driver that owns resources (a scheduler, domains, files) implements
+`Replay.DRIVER_EXT`, which adds `close : t -> unit`; `Replay.Make_ext (D) (S)` calls it once
+when the replay ends, whether it matched, diverged or raised.
+
+---
+
 ## PPX sugar
 
 Add `ppx_quint_connect` to your `(preprocess (pps ...))` in `dune`:

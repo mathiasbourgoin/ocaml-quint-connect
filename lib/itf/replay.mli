@@ -8,3 +8,16 @@ module Make (D : Itf.DRIVER) (S : Itf.STATE with type driver = D.t) : sig
       nondeterministic choices to stderr. *)
   val run : Itf.Trace.t -> (unit, int * string) result
 end
+
+(** A driver that owns resources (domains, switches, files) released by [close]. *)
+module type DRIVER_EXT = sig
+  include Itf.DRIVER
+
+  val close : t -> unit
+end
+
+module Make_ext (D : DRIVER_EXT) (S : Itf.STATE with type driver = D.t) : sig
+  (** Like [Make.run], and calls [D.close] exactly once when the replay ends,
+      whether it matched, diverged, or raised. *)
+  val run : Itf.Trace.t -> (unit, int * string) result
+end

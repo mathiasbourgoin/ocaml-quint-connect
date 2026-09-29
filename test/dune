@@ -9,7 +9,10 @@
 (test
  (name test_story2)
  (libraries ocaml_quint_connect alcotest)
- (preprocess (per_module ((pps ppx_quint_switch) Test_story2))))
+ (preprocess
+  (per_module
+   ((pps ppx_quint_switch)
+    Test_story2))))
 
 (test
  (name test_story3)
@@ -32,19 +35,28 @@
 (test
  (name test_story5)
  (libraries ocaml_quint_connect alcotest str unix)
- (preprocess (per_module ((pps ppx_quint_connect) Test_story5)))
+ (preprocess
+  (per_module
+   ((pps ppx_quint_connect)
+    Test_story5)))
  (deps fixtures/counter_spec.qnt fixtures/counter_spec.itf.json))
 
 (test
  (name test_demo_5)
  (libraries ocaml_quint_connect alcotest str unix)
- (preprocess (per_module ((pps ppx_quint_connect) Test_demo_5)))
+ (preprocess
+  (per_module
+   ((pps ppx_quint_connect)
+    Test_demo_5)))
  (deps fixtures/counter_spec.qnt fixtures/counter_spec.itf.json))
 
 (test
  (name test_story6)
  (libraries ocaml_quint_connect alcotest str unix)
- (preprocess (per_module ((pps ppx_quint_connect) Test_story6)))
+ (preprocess
+  (per_module
+   ((pps ppx_quint_connect)
+    Test_story6)))
  (deps fixtures/counter_spec.qnt fixtures/counter_spec.itf.json))
 
 (test
@@ -57,3 +69,8 @@
  (libraries ocaml_quint_connect alcotest sqlite3)
  (deps fixtures/story_store_trace.itf.json))
 
+(test
+ (name test_mbt032)
+ (libraries ocaml_quint_connect alcotest yojson)
+ (modules test_mbt032)
+ (deps fixtures/mbt032_trace.itf.json))

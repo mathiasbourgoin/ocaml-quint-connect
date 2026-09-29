@@ -31,31 +31,49 @@ let print_step_verbose (step : Itf.Step.t) =
       (Yojson.Basic.to_string (value_to_yojson v))
   ) step.nondet_picks
 
+let replay (type d) (module D : Itf.DRIVER with type t = d)
+    (module S : Itf.STATE with type driver = d) (driver : d) (trace : Itf.Trace.t) :
+    (unit, int * string) result =
+  let verbose = is_verbose () in
+  let rec loop i = function
+    | [] -> Ok ()
+    | step :: rest ->
+      if verbose then print_step_verbose step;
+      (match D.step driver step with
+       | Error e -> Error (i, "driver.step failed: " ^ e)
+       | Ok () ->
+         let impl_state    = S.of_driver driver in
+         let expected_json = bindings_to_yojson step.Itf.Step.bindings in
+         (match S.of_yojson expected_json with
+          | Error e -> Error (i, "of_yojson failed: " ^ e)
+          | Ok expected_state ->
+            if S.equal impl_state expected_state then
+              loop (i + 1) rest
+            else
+              let diff = Printf.sprintf
+                "expected: %s\ngot:      %s"
+                (Yojson.Basic.pretty_to_string expected_json)
+                (Yojson.Basic.pretty_to_string (S.to_yojson impl_state))
+              in
+              Error (i, diff)))
+  in
+  loop 0 trace
+
 module Make (D : Itf.DRIVER) (S : Itf.STATE with type driver = D.t) = struct
   let run (trace : Itf.Trace.t) : (unit, int * string) result =
-    let driver  = D.create () in
-    let verbose = is_verbose () in
-    let rec loop i = function
-      | [] -> Ok ()
-      | step :: rest ->
-        if verbose then print_step_verbose step;
-        (match D.step driver step with
-         | Error e -> Error (i, "driver.step failed: " ^ e)
-         | Ok () ->
-           let impl_state    = S.of_driver driver in
-           let expected_json = bindings_to_yojson step.Itf.Step.bindings in
-           (match S.of_yojson expected_json with
-            | Error e -> Error (i, "of_yojson failed: " ^ e)
-            | Ok expected_state ->
-              if S.equal impl_state expected_state then
-                loop (i + 1) rest
-              else
-                let diff = Printf.sprintf
-                  "expected: %s\ngot:      %s"
-                  (Yojson.Basic.pretty_to_string expected_json)
-                  (Yojson.Basic.pretty_to_string (S.to_yojson impl_state))
-                in
-                Error (i, diff)))
-    in
-    loop 0 trace
+    replay (module D) (module S) (D.create ()) trace
+end
+
+module type DRIVER_EXT = sig
+  include Itf.DRIVER
+
+  val close : t -> unit
+end
+
+module Make_ext (D : DRIVER_EXT) (S : Itf.STATE with type driver = D.t) = struct
+  let run (trace : Itf.Trace.t) : (unit, int * string) result =
+    let driver = D.create () in
+    Fun.protect
+      ~finally:(fun () -> D.close driver)
+      (fun () -> replay (module D) (module S) driver trace)
 end

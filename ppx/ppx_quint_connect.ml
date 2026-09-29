@@ -155,25 +155,27 @@ let expand_quint_run ~ctxt pat expr : structure_item =
 
 (* ── Registration ──────────────────────────────────────────────────────────── *)
 
+(* The payload is one non-recursive [let] binding. It is matched by hand rather than with
+   [Ast_pattern.value_binding], whose arguments changed in ppxlib 0.36 (a
+   [~constraint_] argument was added), so that both older and newer ppxlib build. *)
+let single_binding expand ~ctxt (item : structure_item) : structure_item =
+  match item.pstr_desc with
+  | Pstr_value (Nonrecursive, [vb]) -> expand ~ctxt vb.pvb_pat vb.pvb_expr
+  | _ ->
+      Location.raise_errorf ~loc:item.pstr_loc
+        "quint_connect: expected a single non-recursive let binding"
+
 let quint_test_ext =
   Extension.V3.declare "quint_test"
     Extension.Context.structure_item
-    Ast_pattern.(
-      pstr
-        (pstr_value nonrecursive
-           (value_binding ~pat:__ ~expr:__ ^:: nil)
-         ^:: nil))
-    expand_quint_test
+    Ast_pattern.(pstr (__ ^:: nil))
+    (single_binding expand_quint_test)
 
 let quint_run_ext =
   Extension.V3.declare "quint_run"
     Extension.Context.structure_item
-    Ast_pattern.(
-      pstr
-        (pstr_value nonrecursive
-           (value_binding ~pat:__ ~expr:__ ^:: nil)
-         ^:: nil))
-    expand_quint_run
+    Ast_pattern.(pstr (__ ^:: nil))
+    (single_binding expand_quint_run)
 
 let () =
   Driver.register_transformation "quint_connect"

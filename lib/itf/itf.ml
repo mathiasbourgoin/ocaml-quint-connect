@@ -150,12 +150,12 @@ let is_mbt_key k = String.length k >= 5 && String.sub k 0 5 = "mbt::"
 (* The name after the last "::" of a qualified variable ("inst::mod::x" -> "x"), or
    [None] when the key is not qualified or the suffix is empty. *)
 let unqualified k =
-  let rec last_sep i found =
-    if i < 0 then found
+  let rec last_sep i =
+    if i < 0 then None
     else if k.[i] = ':' && i > 0 && k.[i - 1] = ':' then Some (i + 1)
-    else last_sep (i - 1) found
+    else last_sep (i - 1)
   in
-  match last_sep (String.length k - 1) None with
+  match last_sep (String.length k - 1) with
   | Some start when start < String.length k ->
     Some (String.sub k start (String.length k - start))
   | _ -> None

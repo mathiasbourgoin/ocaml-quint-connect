@@ -17,10 +17,11 @@ step (see README).
   trace stores them in `#meta` (older Quint) or as `mbt::actionTaken` / `mbt::nondetPicks`
   state bindings (Quint `run --mbt`, 0.32); these metadata keys never appear among the state
   bindings.
-- **QC-3** Nondeterministic picks encoded as Quint `Option` values (`{tag: "Some", value}` /
+- **QC-3** Nondeterministic picks of the `mbt::` layout, encoded as Quint `Option` values (`{tag: "Some", value}` /
   `{tag: "None", ...}`) are exposed as the picked value, and absent when `None`.
-- **QC-4** State variables qualified by module path (`inst::mod::x`) are exposed under their
-  unqualified name `x` when that name is unique in the step.
+- **QC-4** With `~unqualify:true`, state variables qualified by module path (`inst::mod::x`)
+  are exposed under their unqualified name `x` when no other variable or nondeterministic pick
+  of the step has that name; by default keys are kept verbatim.
 - **QC-5** Replay runs a driver over a trace; a driver may provide a teardown called when the
   replay ends, whatever the outcome.
 - **QC-6** Existing public signatures (`Itf`, `Replay.Make`, `DRIVER`, `STATE`) keep working

@@ -73,7 +73,13 @@ end
 module Make_ext (D : DRIVER_EXT) (S : Itf.STATE with type driver = D.t) = struct
   let run (trace : Itf.Trace.t) : (unit, int * string) result =
     let driver = D.create () in
-    Fun.protect
-      ~finally:(fun () -> D.close driver)
-      (fun () -> replay (module D) (module S) driver trace)
+    match replay (module D) (module S) driver trace with
+    | r ->
+      D.close driver;
+      r
+    | exception e ->
+      (* The replay's exception wins over one raised by [close]. *)
+      let bt = Printexc.get_raw_backtrace () in
+      (try D.close driver with _ -> ());
+      Printexc.raise_with_backtrace e bt
 end

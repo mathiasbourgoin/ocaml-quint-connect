@@ -18,6 +18,8 @@ end
 
 module Make_ext (D : DRIVER_EXT) (S : Itf.STATE with type driver = D.t) : sig
   (** Like [Make.run], and calls [D.close] exactly once when the replay ends,
-      whether it matched, diverged, or raised. *)
+      whether it matched, diverged, or raised. If the replay raised, that exception is
+      re-raised and an exception from [D.close] is ignored; otherwise an exception from
+      [D.close] propagates. *)
   val run : Itf.Trace.t -> (unit, int * string) result
 end

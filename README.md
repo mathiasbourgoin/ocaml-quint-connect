@@ -152,8 +152,9 @@ Both ITF layouts are accepted:
 - Older traces store `actionTaken` and `nondetPicks` in each state's `#meta`.
 
 State variables qualified by module path, as produced by `quint run --main inst` on an
-instance module (`inst::counter::x`), are exposed under their short name (`x`) when no other
-variable of the step has the same short name.
+instance module (`inst::counter::x`), are kept verbatim by default. With
+`Itf.parse_file ~unqualify:true`, they are exposed under their short name (`x`) when no
+other variable or nondeterministic pick of the step has that name.
 
 ### Drivers with resources
 

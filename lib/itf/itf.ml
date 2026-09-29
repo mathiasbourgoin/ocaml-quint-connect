@@ -134,37 +134,77 @@ let parse_value_list f lst =
   in
   go [] lst
 
-let parse_step (j : Yojson.Basic.t) : (Step.t, string) result =
+(* Quint Option values ({"tag": "Some"|"None", "value": v}) wrap every nondeterministic
+   pick of `quint run --mbt` (0.32): [Some v] is exposed as [v], [None] is dropped. Only
+   picks read from the mbt:: layout are unwrapped; legacy #meta picks are kept verbatim. *)
+let unwrap_pick (k, v) =
+  match v with
+  | `Assoc [ ("tag", `String "None"); ("value", _) ]
+  | `Assoc [ ("value", _); ("tag", `String "None") ] -> None
+  | `Assoc [ ("tag", `String "Some"); ("value", x) ]
+  | `Assoc [ ("value", x); ("tag", `String "Some") ] -> Some (k, x)
+  | _ -> Some (k, v)
+
+let is_mbt_key k = String.length k >= 5 && String.sub k 0 5 = "mbt::"
+
+(* The name after the last "::" of a qualified variable ("inst::mod::x" -> "x"), or
+   [None] when the key is not qualified or the suffix is empty. *)
+let unqualified k =
+  let rec last_sep i =
+    if i < 0 then None
+    else if k.[i] = ':' && i > 0 && k.[i - 1] = ':' then Some (i + 1)
+    else last_sep (i - 1)
+  in
+  match last_sep (String.length k - 1) with
+  | Some start when start < String.length k ->
+    Some (String.sub k start (String.length k - start))
+  | _ -> None
+
+let parse_step ~unqualify (j : Yojson.Basic.t) : (Step.t, string) result =
   match j with
   | `Assoc fields ->
-    let meta_opt =
-      match List.assoc_opt "#meta" fields with
-      | Some (`Assoc m) -> Some m
-      | _               -> None
-    in
+    let meta = match List.assoc_opt "#meta" fields with Some (`Assoc m) -> m | _ -> [] in
+    (* Older Quint versions store MBT metadata in #meta; Quint 0.32 stores it as mbt::*
+       state bindings. A well-typed #meta value wins; otherwise the binding is used. *)
     let action_name =
-      match meta_opt with
-      | Some m ->
-        (match List.assoc_opt "actionTaken" m with
-         | Some (`String s) -> Some s
-         | _                -> None)
-      | None -> None
+      match List.assoc_opt "actionTaken" meta with
+      | Some (`String s) -> Some s
+      | _ -> (
+        match List.assoc_opt "mbt::actionTaken" fields with
+        | Some (`String s) -> Some s
+        | _ -> None)
     in
     let nondet_pairs =
-      match meta_opt with
-      | Some m ->
-        (match List.assoc_opt "nondetPicks" m with
-         | Some (`Assoc picks) -> picks
-         | _                   -> [])
-      | None -> []
+      match List.assoc_opt "nondetPicks" meta with
+      | Some (`Assoc picks) -> picks
+      | _ -> (
+        match List.assoc_opt "mbt::nondetPicks" fields with
+        | Some (`Assoc picks) -> List.filter_map unwrap_pick picks
+        | _ -> [])
     in
     (match parse_value_list (fun (k, v) ->
        match parse_value v with Ok v' -> Ok (k, v') | Error e -> Error e
      ) nondet_pairs with
      | Error e -> Error e
      | Ok nondet_picks ->
+       let state_pairs =
+         List.filter (fun (k, _) -> k <> "#meta" && not (is_mbt_key k)) fields
+       in
+       (* With ~unqualify, expose a qualified variable under its short name when no
+          other variable and no nondeterministic pick of the step has that name. *)
        let binding_pairs =
-         List.filter (fun (k, _) -> k <> "#meta") fields
+         if not unqualify then state_pairs
+         else
+           let shorts = List.filter_map (fun (k, _) -> unqualified k) state_pairs in
+           let names = shorts @ List.map fst state_pairs in
+           let unique n =
+             List.length (List.filter (String.equal n) names) = 1
+             && not (List.mem_assoc n nondet_picks)
+           in
+           List.map (fun (k, v) ->
+             match unqualified k with
+             | Some n when unique n -> (n, v)
+             | _ -> (k, v)) state_pairs
        in
        (match parse_value_list (fun (k, v) ->
           match parse_value v with Ok v' -> Ok (k, v') | Error e -> Error e
@@ -176,7 +216,7 @@ let parse_step (j : Yojson.Basic.t) : (Step.t, string) result =
 
 (* ---- Trace parser ---- *)
 
-let parse_trace (j : Yojson.Basic.t) : (Trace.t, string) result =
+let parse_trace ~unqualify (j : Yojson.Basic.t) : (Trace.t, string) result =
   match j with
   | `Assoc fields ->
     (* #meta is required *)
@@ -185,7 +225,7 @@ let parse_trace (j : Yojson.Basic.t) : (Trace.t, string) result =
      | Some _ ->
        (match List.assoc_opt "states" fields with
         | Some (`List states) ->
-          let results = List.map parse_step states in
+          let results = List.map (parse_step ~unqualify) states in
           let rec collect acc = function
             | []              -> Ok (List.rev acc)
             | Error e :: _    -> Error e
@@ -199,19 +239,19 @@ let parse_trace (j : Yojson.Basic.t) : (Trace.t, string) result =
 
 (* ---- Public API ---- *)
 
-let parse_string (s : string) : (Trace.t list, string) result =
+let parse_string ?(unqualify = false) (s : string) : (Trace.t list, string) result =
   match Yojson.Basic.from_string s with
   | exception Yojson.Json_error msg -> Error ("JSON parse error: " ^ msg)
   | j ->
-    (match parse_trace j with
+    (match parse_trace ~unqualify j with
      | Ok trace -> Ok [trace]
      | Error e  -> Error e)
 
-let parse_file (path : string) : (Trace.t list, string) result =
+let parse_file ?(unqualify = false) (path : string) : (Trace.t list, string) result =
   match Yojson.Basic.from_file path with
   | exception Sys_error msg         -> Error ("File error: " ^ msg)
   | exception Yojson.Json_error msg -> Error ("JSON parse error: " ^ msg)
   | j ->
-    (match parse_trace j with
+    (match parse_trace ~unqualify j with
      | Ok trace -> Ok [trace]
      | Error e  -> Error e)

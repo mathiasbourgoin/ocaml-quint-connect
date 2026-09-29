@@ -57,5 +57,13 @@ module Switch : sig
   val param_opt : Step.t -> string -> Value.t option
 end
 
-val parse_string : string -> (Trace.t list, string) result
-val parse_file   : string -> (Trace.t list, string) result
+(** [parse_string json] parses an ITF trace. Both layouts are read: MBT metadata in each
+    state's [#meta] (older Quint) or as [mbt::actionTaken] / [mbt::nondetPicks] state
+    bindings (Quint 0.32 [run --mbt]), whose picks are Option-unwrapped; [mbt::] keys never
+    appear in [Step.bindings]. With [~unqualify:true], a state variable qualified by module
+    path ([inst::mod::x]) is exposed as [x] when no other variable or pick of the step has
+    that name; the default keeps keys verbatim. Never raises. *)
+val parse_string : ?unqualify:bool -> string -> (Trace.t list, string) result
+
+(** Same as [parse_string], reading the file at the given path. *)
+val parse_file   : ?unqualify:bool -> string -> (Trace.t list, string) result

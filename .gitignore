@@ -8,3 +8,11 @@ _build/
 build_*_dune/
 dune_*_stdout
 dune_*_stderr
+_build/
+_opam/
+skills-meta/
+kb/.index/
+briefs/*-xruntime.jsonl
+briefs/*-gate-report.json
+briefs/*-state.json
+briefs/*.json.draft

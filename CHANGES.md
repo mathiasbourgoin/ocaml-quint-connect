@@ -3,9 +3,6 @@
 ## Unreleased
 
 - ppx: build with ppxlib 0.36+ (`Ast_pattern.value_binding` gained a `~constraint_` argument); the `[%%quint_test]` / `[%%quint_run]` payload is now matched by hand. Found by the tezos_bees CI (ppxlib 0.38).
-
-## Unreleased
-
 - Read Quint 0.32 `run --mbt` traces: `mbt::actionTaken` and `mbt::nondetPicks` state
   bindings populate `Step.action_name` and `Step.nondet_picks`, with Option-wrapped picks
   unwrapped (`Some v` → `v`, `None` → absent). Legacy `#meta` metadata still takes precedence
